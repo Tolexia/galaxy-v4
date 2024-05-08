@@ -8,28 +8,22 @@ attribute float aIntensity;
 attribute float aAngle;
 
 uniform float uTime;
+uniform vec3 uPointer;
 
 varying vec3 vColor;
 
 void main()
 {
     // Displacement
-    vec3 newPosition = position;
-    float displacementIntensity = texture(uDisplacementTexture, uv).r;
-    displacementIntensity = smoothstep(0.1, 0.3, displacementIntensity);
-    vec3 displacement = vec3(
-        cos(aAngle) * 0.2,
-        sin(aAngle) * 0.2,
-        10.0
-    );
-    displacement = normalize(displacement);
-    displacement *= displacementIntensity * 10.;
-    displacement *= aIntensity * 10.;
-    newPosition += displacement;
+    vec4 modelPosition = modelMatrix * vec4(position, 1.0);
+    float distanceToPointer = abs(distance(position, uPointer));
+    float intensity = 0.5 / distanceToPointer;
 
+    // vColor = uPointer;
+
+    modelPosition.xyz += intensity * 600.;
 
     // Final position
-    vec4 modelPosition = modelMatrix * vec4(newPosition, 1.0);
     vec4 viewPosition = viewMatrix * modelPosition;
     vec4 projectedPosition = projectionMatrix * viewPosition;
     gl_Position = projectedPosition;
@@ -42,6 +36,4 @@ void main()
 
     gl_PointSize *= (1.0 / - viewPosition.z);
 
-    // Varyings
-    // vColor = vec3(pow(pictureIntensity, 2.0));
 }
