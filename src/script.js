@@ -235,8 +235,8 @@ const tick = () =>
     controls.update()
 
     const elapsedTime = clock.getElapsedTime()
-    // particlesMaterial.uniforms.uTime.value = elapsedTime
-    particles.rotation.z = elapsedTime * 0.05
+    particlesMaterial.uniforms.uTime.value = elapsedTime
+    // particles.rotation.z = elapsedTime * 0.05
 
 
 

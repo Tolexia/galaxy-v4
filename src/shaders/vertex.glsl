@@ -14,19 +14,24 @@ varying vec3 vColor;
 
 void main()
 {
-    // Displacement
     vec4 modelPosition = modelMatrix * vec4(position, 1.0);
-    float distanceToPointer = abs(distance(position, uPointer));
-    float intensity = 0.5 / distanceToPointer;
+                
+    // Rotate
+    // float angle = atan(modelPosition.x, modelPosition.z);
+    // float distanceToCenter = length(modelPosition.xz);
+    // float angleOffset = (1.0 / distanceToCenter) * uTime * 0.2;
+    // angle += angleOffset;
+    // modelPosition.x = cos(angle) * distanceToCenter;
+    // modelPosition.z = sin(angle) * distanceToCenter;
+    
+    // float distanceToPointer = (distance(modelPosition.xyz, uPointer));
+    // float intensity = 0.5 / distanceToPointer;
 
-    // vColor = uPointer;
 
-    modelPosition.xyz += intensity * 600.;
-
-    // Final position
     vec4 viewPosition = viewMatrix * modelPosition;
     vec4 projectedPosition = projectionMatrix * viewPosition;
     gl_Position = projectedPosition;
+    
 
 
     // Point size
