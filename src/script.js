@@ -87,7 +87,6 @@ parameters.outsideColor = '#99edf7'
 
 let 
     positions,
-    colors,
     particlesSizes ,
     vertices
  /**
@@ -96,12 +95,11 @@ let
  const particlesGeometry = new THREE.BufferGeometry()
     
  const positionsTmp = []
- colors = new Float32Array(parameters.count * 3)
+
  
  particlesSizes = new Float32Array( parameters.count );
  vertices = new Array();
 
- 
  for(let i = 0; i < parameters.count / 4 ; i++)
  {
      let x = gaussianRandom(0, CORE_X_DIST)
@@ -123,32 +121,61 @@ let
      vertices.push(new THREE.Vector3(x, y, z))
  }
  for (let j = 0; j < ARMS; j++) {
-     for ( let i = 0; i < parameters.count / 4; i++){
-         let pos = spiral(gaussianRandom(ARM_X_MEAN, ARM_X_DIST), gaussianRandom(ARM_Y_MEAN, ARM_Y_DIST), gaussianRandom(0, GALAXY_THICKNESS), j * 2 * Math.PI / ARMS)
-         positionsTmp.push(pos.x) 
-         positionsTmp.push(pos.y) 
-         positionsTmp.push(pos.z) 
-         vertices.push(new THREE.Vector3(pos.x, pos.y, pos.z))
-     }
+    for ( let i = 0; i < parameters.count / 4; i++){
+        let pos = spiral(gaussianRandom(ARM_X_MEAN, ARM_X_DIST), gaussianRandom(ARM_Y_MEAN, ARM_Y_DIST), gaussianRandom(0, GALAXY_THICKNESS), j * 2 * Math.PI / ARMS)
+        positionsTmp.push(pos.x) 
+        positionsTmp.push(pos.y) 
+        positionsTmp.push(pos.z) 
+        vertices.push(new THREE.Vector3(pos.x, pos.y, pos.z))
+    }
  }
  positions = new Float32Array(positionsTmp.length)
+ const aRandom = new Float32Array( positionsTmp.length );
 
+ const colors = new Float32Array(parameters.count * 3)
+ const insideColor = new THREE.Color(parameters.insideColor)
+ const outsideColor = new THREE.Color(parameters.outsideColor)
+ 
  for ( let i = 0; i < positionsTmp.length; i++)
  {
     // Position
     positions[i] = positionsTmp[i];
 
-    //Color
-    let color = new THREE.Color( 0xffffff )
-    color.toArray( colors, i * 3 );
-
-     // Size
-     particlesSizes[i] = parameters.size;
+    // Size
+    particlesSizes[i] = parameters.size * (Math.random() + 0.5);
  }
+ for ( let i = 0; i < positionsTmp.length / 3; i++)
+{
+    const i3 = i * 3
+        
+    const spherical = new THREE.Spherical(
+        (0.75 + Math.random() * 0.25),
+        Math.random() * Math.PI,
+        Math.random() * Math.PI * 2,
+    )
 
+    const position = new THREE.Vector3()
+    
+    position.setFromSpherical(spherical)
 
-particlesGeometry.setAttribute( 'position', new THREE.BufferAttribute(positions, 3) )
-particlesGeometry.setAttribute( 'customColor', new THREE.BufferAttribute( colors, 3 ) );
+    aRandom[i3    ] = position.x;
+    aRandom[i3 + 1] = position.y;
+    aRandom[i3 + 2] = position.z;
+
+     // Color
+     const mixedColor = insideColor.clone()
+     const pos = new THREE.Vector3(positions[i3],positions[i3+1],positions[i3+2])
+     mixedColor.lerp(outsideColor, pos.distanceTo(new THREE.Vector3(0,0,0))/ 1.5 / OUTER_CORE_X_DIST)
+
+     colors[i3    ] = mixedColor.r
+     colors[i3 + 1] = mixedColor.g
+     colors[i3 + 2] = mixedColor.b
+}
+console.log(colors)
+
+particlesGeometry.setAttribute( 'position', new THREE.Float32BufferAttribute(positions, 3) )
+particlesGeometry.setAttribute( 'aRandom', new THREE.Float32BufferAttribute(aRandom, 3) )
+particlesGeometry.setAttribute( 'aColor', new THREE.BufferAttribute( colors, 3 ) );
 particlesGeometry.setAttribute( 'size', new THREE.BufferAttribute( particlesSizes, 1 ) );
 // particlesGeometry.setIndex(null)
 // particlesGeometry.deleteAttribute('normal')
@@ -180,7 +207,7 @@ const test = new THREE.Mesh(
     new THREE.SphereGeometry(10, 10,10),
     new THREE.MeshBasicMaterial({color:0xFF0000, wireframe:true})
 )
-scene.add(test)
+// scene.add(test)
 window.addEventListener('pointermove', (event) =>
 {
     pointer.x = (event.clientX / sizes.width) * 2 - 1
@@ -193,6 +220,7 @@ window.addEventListener('pointermove', (event) =>
     {
         test.position.copy(intersects[0].point)
         point.copy(intersects[0].point)
+        console.log(point)
     }
 })
 
@@ -235,7 +263,7 @@ const tick = () =>
     controls.update()
 
     const elapsedTime = clock.getElapsedTime()
-    particlesMaterial.uniforms.uTime.value = elapsedTime
+    particlesMaterial.uniforms.uTime.value = elapsedTime * 0.5 
     // particles.rotation.z = elapsedTime * 0.05
 
 
