@@ -25,16 +25,14 @@ void main()
     modelPosition.x = cos(angle) * distanceToCenter;
     modelPosition.y = sin(angle) * distanceToCenter;
     
-    float distanceToPointer = (distance(modelPosition.xyz, uPointer));
-    float intensity = 1. / distanceToPointer;
-    intensity = smoothstep(0.0, 0.1, intensity);
 
-    // vColor = vec3( intensity * 10., 1.,1.);
-    vColor = aColor;
-
-    modelPosition.x += intensity * 50. * aRandom.x;
-    modelPosition.y += intensity * 50. * aRandom.y;
-    modelPosition.z += intensity * 5. * aRandom.z;
+    // Push particles
+    vec3 seg = modelPosition.xyz - uPointer;
+    vec3 dir = normalize(seg);
+    float dist = length(seg);
+    // float force = clamp(1. / (dist * dist), 0., 2.); // Small push
+    float force = clamp(1. / (dist), 0., 2.); // Big push
+    modelPosition.xyz += dir * force * 800.;
 
 
     vec4 viewPosition = viewMatrix * modelPosition;
@@ -49,5 +47,7 @@ void main()
 
 
     gl_PointSize *= (1.0 / - viewPosition.z);
+
+    vColor = aColor;
 
 }
