@@ -5,6 +5,7 @@ import particlesFragmentShader from './shaders/fragment.glsl'
 import { gaussianRandom, spiral } from './utils.js';
 import GUI from 'lil-gui'
 import { ARMS, ARM_X_DIST, ARM_X_MEAN, ARM_Y_DIST, ARM_Y_MEAN, CORE_X_DIST, CORE_Y_DIST, GALAXY_THICKNESS, OUTER_CORE_X_DIST, OUTER_CORE_Y_DIST } from './config/galaxyConfig.js';
+import { EffectComposer, RenderPass, UnrealBloomPass } from 'three/examples/jsm/Addons.js';
 /**
  * Base
  */
@@ -13,6 +14,9 @@ const canvas = document.querySelector('canvas.webgl')
 
 // Scene
 const scene = new THREE.Scene()
+scene.add( new THREE.AmbientLight( 0xcccccc  ) );
+scene.fog = new THREE.FogExp2(0xEBE2DB, 0.00003);
+
 
 // Loaders
 const textureLoader = new THREE.TextureLoader()
@@ -43,6 +47,10 @@ window.addEventListener('resize', () =>
     // Update renderer
     renderer.setSize(sizes.width, sizes.height)
     renderer.setPixelRatio(sizes.pixelRatio)
+
+    // Update effect composer
+    effectComposer.setSize(sizes.width, sizes.height)
+    effectComposer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 })
 
 /**
@@ -54,6 +62,9 @@ camera.position.set(0, 500, 500);
 camera.up.set(0, 0, 1);
 // camera.lookAt(0, 0, 0);
 scene.add(camera)
+
+const pointLight = new THREE.PointLight( 0xffffff, 1 );
+camera.add( pointLight );
 
 // Controls
 const controls = new OrbitControls(camera, canvas)
@@ -171,7 +182,6 @@ let
      colors[i3 + 1] = mixedColor.g
      colors[i3 + 2] = mixedColor.b
 }
-console.log(colors)
 
 particlesGeometry.setAttribute( 'position', new THREE.Float32BufferAttribute(positions, 3) )
 particlesGeometry.setAttribute( 'aRandom', new THREE.Float32BufferAttribute(aRandom, 3) )
@@ -218,9 +228,8 @@ window.addEventListener('pointermove', (event) =>
     const intersects = raycaster.intersectObject(particles)
     if(intersects.length > 0)
     {
-        test.position.copy(intersects[0].point)
-        point.copy(intersects[0].point)
-        console.log(point)
+        test.position.lerp(intersects[0].point, 0.2)
+        point.lerp(intersects[0].point, 0.2)
     }
 })
 
@@ -252,6 +261,41 @@ gui
     .step(0.01)
 
 
+    /**
+ * Post processing
+ */
+// renderer.outputEncoding = THREE.sRGBEncoding
+// renderer.toneMappingExposure = 0.1
+// renderer.toneMapping = THREE.ReinhardToneMapping;
+
+const renderTarget = new THREE.WebGLRenderTarget(
+    800,
+    600,
+    {
+        // antialias: true,
+        // logarithmicDepthBuffer: true,
+        samples: renderer.getPixelRatio() === 1 ? 2 : 0
+    }
+)
+const effectComposer = new EffectComposer(renderer, renderTarget)
+effectComposer.setSize(sizes.width, sizes.height)
+effectComposer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+
+const renderPass = new RenderPass(scene, camera)
+effectComposer.addPass(renderPass)
+
+const unrealBloomPass = new UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), 0.5, 0.1, 0.85 )
+unrealBloomPass.enabled = false
+unrealBloomPass.strength = 0.8
+unrealBloomPass.radius = 0.001
+unrealBloomPass.threshold = 0.1
+
+gui.add(unrealBloomPass, 'enabled')
+gui.add(unrealBloomPass, 'strength').min(0).max(2).step(0.001)
+gui.add(unrealBloomPass, 'radius').min(0).max(2).step(0.001)
+gui.add(unrealBloomPass, 'threshold').min(0).max(5).step(0.001)
+
+effectComposer.addPass(unrealBloomPass)
 
 /**
  * Animate
@@ -269,7 +313,8 @@ const tick = () =>
 
 
     // Render
-    renderer.render(scene, camera)
+    // renderer.render(scene, camera)
+    effectComposer.render(scene, camera)
 
 
     // Tweaks
