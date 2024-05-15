@@ -5,13 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "devDependencies": {
     "vite": "^4.5.0"
   },
   "dependencies": {
     "cannon-es": "^0.20.0",
+    "gh-pages": "^6.1.1",
     "gsap": "3.12",
     "lil-gui": "^0.19.1",
     "three": "^0.158.0",

@@ -5,7 +5,7 @@ import particlesFragmentShader from './shaders/fragment.glsl'
 import { gaussianRandom, spiral } from './utils.js';
 import GUI from 'lil-gui'
 import { ARMS, ARM_X_DIST, ARM_X_MEAN, ARM_Y_DIST, ARM_Y_MEAN, CORE_X_DIST, CORE_Y_DIST, GALAXY_THICKNESS, OUTER_CORE_X_DIST, OUTER_CORE_Y_DIST } from './config/galaxyConfig.js';
-import { EffectComposer, RenderPass, UnrealBloomPass } from 'three/examples/jsm/Addons.js';
+import { EffectComposer, RenderPass, ShaderPass, UnrealBloomPass } from 'three/examples/jsm/Addons.js';
 /**
  * Base
  */
@@ -14,8 +14,8 @@ const canvas = document.querySelector('canvas.webgl')
 
 // Scene
 const scene = new THREE.Scene()
-scene.add( new THREE.AmbientLight( 0xcccccc  ) );
-scene.fog = new THREE.FogExp2(0xEBE2DB, 0.00003);
+// scene.add( new THREE.AmbientLight( 0xcccccc  ) );
+// scene.fog = new THREE.FogExp2(0xEBE2DB, 0.00003);
 
 
 // Loaders
@@ -63,8 +63,8 @@ camera.up.set(0, 0, 1);
 // camera.lookAt(0, 0, 0);
 scene.add(camera)
 
-const pointLight = new THREE.PointLight( 0xffffff, 1 );
-camera.add( pointLight );
+// const pointLight = new THREE.PointLight( 0xffffff, 1 );
+// camera.add( pointLight );
 
 // Controls
 const controls = new OrbitControls(camera, canvas)
@@ -264,9 +264,9 @@ gui
     /**
  * Post processing
  */
-// renderer.outputEncoding = THREE.sRGBEncoding
-// renderer.toneMappingExposure = 0.1
-// renderer.toneMapping = THREE.ReinhardToneMapping;
+renderer.outputEncoding = THREE.sRGBEncoding
+renderer.toneMappingExposure = Math.pow( 0.2, 4.0 )
+renderer.toneMapping = THREE.ReinhardToneMapping;
 
 const renderTarget = new THREE.WebGLRenderTarget(
     800,
@@ -285,17 +285,56 @@ const renderPass = new RenderPass(scene, camera)
 effectComposer.addPass(renderPass)
 
 const unrealBloomPass = new UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), 0.5, 0.1, 0.85 )
-unrealBloomPass.enabled = false
-unrealBloomPass.strength = 0.8
+// unrealBloomPass.enabled = false
+unrealBloomPass.strength = 1.
 unrealBloomPass.radius = 0.001
 unrealBloomPass.threshold = 0.1
 
 gui.add(unrealBloomPass, 'enabled')
 gui.add(unrealBloomPass, 'strength').min(0).max(2).step(0.001)
 gui.add(unrealBloomPass, 'radius').min(0).max(2).step(0.001)
-gui.add(unrealBloomPass, 'threshold').min(0).max(5).step(0.001)
+gui.add(unrealBloomPass, 'threshold').min(0).max(1).step(0.001)
+gui.add(renderer, 'toneMappingExposure').min(0.1).max(2).onChange( function ( value ) {
+
+    renderer.toneMappingExposure = Math.pow( value, 4.0 );
+
+} );
 
 effectComposer.addPass(unrealBloomPass)
+
+const TintShader = {
+    uniforms:
+    {
+        tDiffuse: { value: null },
+        uTint: { value: null }
+    },
+    vertexShader: `
+        varying vec2 vUv;
+
+        void main()
+        {
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+
+            vUv = uv;
+        }
+    `,
+    fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform vec3 uTint;
+
+        varying vec2 vUv;
+
+        void main()
+        {
+            vec4 color = texture2D(tDiffuse, vUv);
+            color.rgb -= uTint;
+            gl_FragColor = color;
+        }
+    `
+}
+const tintPass = new ShaderPass(TintShader)
+tintPass.material.uniforms.uTint.value = new THREE.Vector3(0.15,0.15,0.15)
+effectComposer.addPass(tintPass)
 
 /**
  * Animate
