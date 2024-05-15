@@ -233,6 +233,8 @@ window.addEventListener('pointermove', (event) =>
     }
 })
 
+let glowPath = '/glow.png'
+if( window.location.href.includes("github") ) glowPath = "."+glowPath
 
 const particlesMaterial = new THREE.ShaderMaterial({
     blending: THREE.AdditiveBlending,
@@ -247,7 +249,7 @@ const particlesMaterial = new THREE.ShaderMaterial({
         uPointer: new THREE.Uniform(point),
         PI: new THREE.Uniform(Math.PI),
         uTime: new THREE.Uniform(0),
-        uTexture: new THREE.Uniform(textureLoader.load('/glow.png'))
+        uTexture: new THREE.Uniform(textureLoader.load(glowPath))
     }
 })
 const particles = new THREE.Points(particlesGeometry, particlesMaterial)
