@@ -256,6 +256,7 @@ const particles = new THREE.Points(particlesGeometry, particlesMaterial)
 scene.add(particles)
 
 const gui = new GUI;
+gui.hide()
 gui 
     .add(tweaks, 'particleSize')
     .min(0.001)
@@ -288,15 +289,15 @@ effectComposer.addPass(renderPass)
 
 const unrealBloomPass = new UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), 0.5, 0.1, 0.85 )
 // unrealBloomPass.enabled = false
-unrealBloomPass.strength = 1.
+unrealBloomPass.strength = 1.5
 unrealBloomPass.radius = 0.001
-unrealBloomPass.threshold = 0.1
+unrealBloomPass.threshold = 0.175
 
 gui.add(unrealBloomPass, 'enabled')
 gui.add(unrealBloomPass, 'strength').min(0).max(2).step(0.001)
-gui.add(unrealBloomPass, 'radius').min(0).max(2).step(0.001)
+gui.add(unrealBloomPass, 'radius').min(0).max(1).step(0.0001)
 gui.add(unrealBloomPass, 'threshold').min(0).max(1).step(0.001)
-gui.add(renderer, 'toneMappingExposure').min(0.1).max(2).onChange( function ( value ) {
+gui.add(renderer, 'toneMappingExposure').min(0).max(2).step(0.001).onChange( function ( value ) {
 
     renderer.toneMappingExposure = Math.pow( value, 4.0 );
 

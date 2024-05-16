@@ -1,4 +1,9 @@
-# Three.js Journey
+# Last Version Of Animated Galaxy
+
+## [Demo Here](https://tolexia.github.io/trezora/) 
+
+## Preview
+![Preview](./preview.png)
 
 ## Setup
 Download [Node.js](https://nodejs.org/en/download/).
