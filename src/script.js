@@ -58,17 +58,17 @@ window.addEventListener('resize', () =>
  */
 // Base camera
 const camera = new THREE.PerspectiveCamera(60, sizes.width / sizes.height, 0.1, 5000000)
-camera.position.set(0, 500, 500);
-camera.up.set(0, 0, 1);
-// camera.lookAt(0, 0, 0);
+camera.position.set(0, 650, 650);
+camera.up.set(0, 0, 2);
+camera.lookAt(0, 0, 0);
 scene.add(camera)
 
 // const pointLight = new THREE.PointLight( 0xffffff, 1 );
 // camera.add( pointLight );
 
 // Controls
-const controls = new OrbitControls(camera, canvas)
-controls.enableDamping = true
+// const controls = new OrbitControls(camera, canvas)
+// controls.enableDamping = true
 
 /**
  * Renderer
@@ -268,7 +268,8 @@ gui
  * Post processing
  */
 renderer.outputEncoding = THREE.sRGBEncoding
-renderer.toneMappingExposure = Math.pow( 0.2, 4.0 )
+parameters.toneMappingExposure =0.01
+renderer.toneMappingExposure = Math.pow(parameters.toneMappingExposure, 4.0 )
 renderer.toneMapping = THREE.ReinhardToneMapping;
 
 const renderTarget = new THREE.WebGLRenderTarget(
@@ -289,15 +290,15 @@ effectComposer.addPass(renderPass)
 
 const unrealBloomPass = new UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), 0.5, 0.1, 0.85 )
 // unrealBloomPass.enabled = false
-unrealBloomPass.strength = 1.5
-unrealBloomPass.radius = 0.001
-unrealBloomPass.threshold = 0.175
+unrealBloomPass.strength = 1.18
+unrealBloomPass.radius = 0.037
+unrealBloomPass.threshold = 0.222
 
 gui.add(unrealBloomPass, 'enabled')
 gui.add(unrealBloomPass, 'strength').min(0).max(2).step(0.001)
 gui.add(unrealBloomPass, 'radius').min(0).max(1).step(0.0001)
 gui.add(unrealBloomPass, 'threshold').min(0).max(1).step(0.001)
-gui.add(renderer, 'toneMappingExposure').min(0).max(2).step(0.001).onChange( function ( value ) {
+gui.add(parameters, 'toneMappingExposure').min(0).max(5).step(0.001).onChange( function ( value ) {
 
     renderer.toneMappingExposure = Math.pow( value, 4.0 );
 
@@ -336,7 +337,11 @@ const TintShader = {
     `
 }
 const tintPass = new ShaderPass(TintShader)
-tintPass.material.uniforms.uTint.value = new THREE.Vector3(0.15,0.15,0.15)
+parameters.uTint = 0.135
+tintPass.material.uniforms.uTint.value = new THREE.Vector3(parameters.uTint,parameters.uTint,parameters.uTint)
+gui.add(parameters, 'uTint').min(0).max(1).step(0.001).onChange(value => {
+    tintPass.material.uniforms.uTint.value = new THREE.Vector3(value,value,value)
+})
 effectComposer.addPass(tintPass)
 
 /**
@@ -346,7 +351,7 @@ const clock = new THREE.Clock()
 const tick = () =>
 {
     // Update controls
-    controls.update()
+    // controls.update()
 
     const elapsedTime = clock.getElapsedTime()
     particlesMaterial.uniforms.uTime.value = elapsedTime * 0.5 
