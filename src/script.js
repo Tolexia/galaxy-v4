@@ -218,10 +218,10 @@ const test = new THREE.Mesh(
     new THREE.MeshBasicMaterial({color:0xFF0000, wireframe:true})
 )
 // scene.add(test)
-window.addEventListener('pointermove', (event) =>
+document.querySelector('canvas')?.addEventListener('mousemove', event =>
 {
-    pointer.x = (event.clientX / sizes.width) * 2 - 1
-    pointer.y = - (event.clientY / sizes.height) * 2 + 1
+    pointer.x = (event.x / sizes.width) * 2 - 1
+    pointer.y = - (event.y / sizes.height) * 2 + 1
 
     raycaster.setFromCamera(pointer, camera)
 
@@ -229,7 +229,23 @@ window.addEventListener('pointermove', (event) =>
     if(intersects.length > 0)
     {
         test.position.lerp(intersects[0].point, 0.2)
-        point.lerp(intersects[0].point, 0.2)
+        point.lerp(intersects[0].point, 0.5)
+    }
+})
+document.querySelector('canvas')?.addEventListener('touchmove', e => {
+    const clientX = event.changedTouches[0].clientX
+    const clientY = event.changedTouches[0].clientY
+
+    pointer.x = (clientX / sizes.width) * 2 - 1
+    pointer.y = - (clientY / sizes.height) * 2 + 1
+
+    raycaster.setFromCamera(pointer, camera)
+
+    const intersects = raycaster.intersectObject(particles)
+    if(intersects.length > 0)
+    {
+        test.position.lerp(intersects[0].point, 0.2)
+        point.lerp(intersects[0].point, 0.5)
     }
 })
 
