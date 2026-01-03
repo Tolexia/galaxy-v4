@@ -2,9 +2,14 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import particlesVertexShader from './shaders/vertex.glsl'
 import particlesFragmentShader from './shaders/fragment.glsl'
+import gasVertexShader from './shaders/gasVertex.glsl'
+import gasFragmentShader from './shaders/gasFragment.glsl'
+import disqueVertexShader from './shaders/disqueVertex.glsl'
+import disqueFragmentShader from './shaders/disqueFragment.glsl'
 import { gaussianRandom, spiral } from './utils.js';
 import GUI from 'lil-gui'
-import { ARMS, ARM_X_DIST, ARM_X_MEAN, ARM_Y_DIST, ARM_Y_MEAN, CORE_X_DIST, CORE_Y_DIST, GALAXY_THICKNESS, OUTER_CORE_X_DIST, OUTER_CORE_Y_DIST } from './config/galaxyConfig.js';
+import Stats from 'three/examples/jsm/libs/stats.module.js'
+import { ARMS, ARM_X_DIST, ARM_X_MEAN, ARM_Y_DIST, ARM_Y_MEAN, CORE_X_DIST, CORE_Y_DIST, GALAXY_THICKNESS, OUTER_CORE_X_DIST, OUTER_CORE_Y_DIST, GAS_COUNT, GAS_PARTICLE_SIZE, GAS_THICKNESS, GAS_CORE_X_DIST, GAS_CORE_Y_DIST, GAS_OUTER_CORE_X_DIST, GAS_OUTER_CORE_Y_DIST, GAS_ARM_X_DIST, GAS_ARM_Y_DIST, GAS_ARM_X_MEAN, GAS_ARM_Y_MEAN } from './config/galaxyConfig.js';
 import { EffectComposer, RenderPass, ShaderPass, UnrealBloomPass } from 'three/examples/jsm/Addons.js';
 /**
  * Base
@@ -39,6 +44,8 @@ window.addEventListener('resize', () =>
 
     // Materials
     particlesMaterial.uniforms.uResolution.value.set(sizes.width * sizes.pixelRatio, sizes.height * sizes.pixelRatio)
+    gasMaterial.uniforms.uResolution.value.set(sizes.width * sizes.pixelRatio, sizes.height * sizes.pixelRatio)
+    diskMaterial.uniforms.uResolution.value.set(sizes.width * sizes.pixelRatio, sizes.height * sizes.pixelRatio)
 
     // Update camera
     camera.aspect = sizes.width / sizes.height
@@ -49,8 +56,8 @@ window.addEventListener('resize', () =>
     renderer.setPixelRatio(sizes.pixelRatio)
 
     // Update effect composer
-    effectComposer.setSize(sizes.width, sizes.height)
-    effectComposer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    // effectComposer.setSize(sizes.width, sizes.height)
+    // effectComposer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 })
 
 /**
@@ -67,8 +74,8 @@ scene.add(camera)
 // camera.add( pointLight );
 
 // Controls
-// const controls = new OrbitControls(camera, canvas)
-// controls.enableDamping = true
+const controls = new OrbitControls(camera, canvas)
+controls.enableDamping = true
 
 /**
  * Renderer
@@ -86,7 +93,7 @@ renderer.setPixelRatio(sizes.pixelRatio)
  * Particles
  */
 const parameters = {}
-parameters.count = 25000
+parameters.count = 50000
 parameters.size = 1
 parameters.radius = 10
 parameters.branches = 2
@@ -143,11 +150,18 @@ let
  positions = new Float32Array(positionsTmp.length)
  const aRandom = new Float32Array( positionsTmp.length );
 
- const colors = new Float32Array(parameters.count * 3)
- const insideColor = new THREE.Color(parameters.insideColor)
- const outsideColor = new THREE.Color(parameters.outsideColor)
+const colors = new Float32Array(parameters.count * 3)
+const insideColor = new THREE.Color(parameters.insideColor)
+const outsideColor = new THREE.Color(parameters.outsideColor)
+const redStarColor = new THREE.Color('#ff9955') // Étoiles rouges
+const whiteStarColor = new THREE.Color('#ffffff') // Étoiles blanches
+
+// Identifier le nombre de particules dans chaque section
+const coreCount = parameters.count / 4
+const outerCoreCount = parameters.count / 4
+const armsStartIndex = coreCount + outerCoreCount // Index de début des bras
  
- for ( let i = 0; i < positionsTmp.length; i++)
+for ( let i = 0; i < positionsTmp.length; i++)
  {
     // Position
     positions[i] = positionsTmp[i];
@@ -174,13 +188,42 @@ let
     aRandom[i3 + 2] = position.z;
 
      // Color
-     const mixedColor = insideColor.clone()
      const pos = new THREE.Vector3(positions[i3],positions[i3+1],positions[i3+2])
-     mixedColor.lerp(outsideColor, pos.distanceTo(new THREE.Vector3(0,0,0))/ 1.5 / OUTER_CORE_X_DIST)
+     const distanceFromCenter = pos.distanceTo(new THREE.Vector3(0,0,0))
+     
+     // Vérifier si la particule est dans les bras
+     const isInArms = i >= armsStartIndex
+     
+     let finalColor
+     if (isInArms) {
+         // Pour les particules dans les bras, ajouter des étoiles rouges et blanches
+         const randomValue = Math.random()
+         if (randomValue < 0.33) {
+             // 33% d'étoiles rouges dans les bras
+             finalColor = redStarColor.clone()
+             // Ajouter une légère variation de luminosité
+             const brightness = 0.8 + Math.random() * 0.4
+             finalColor.multiplyScalar(brightness)
+         } else if (randomValue < 0.66) {
+             // 33% d'étoiles blanches dans les bras
+             finalColor = whiteStarColor.clone()
+             // Ajouter une légère variation de luminosité
+             const brightness = 0.7 + Math.random() * 0.3
+             finalColor.multiplyScalar(brightness)
+         } else {
+             // 70% gardent la couleur normale basée sur la distance
+             finalColor = insideColor.clone()
+             finalColor.lerp(outsideColor, distanceFromCenter / 1.5 / OUTER_CORE_X_DIST)
+         }
+     } else {
+         // Pour le noyau, garder la couleur normale
+         finalColor = insideColor.clone()
+         finalColor.lerp(outsideColor, distanceFromCenter / 1.5 / OUTER_CORE_X_DIST)
+     }
 
-     colors[i3    ] = mixedColor.r
-     colors[i3 + 1] = mixedColor.g
-     colors[i3 + 2] = mixedColor.b
+     colors[i3    ] = finalColor.r
+     colors[i3 + 1] = finalColor.g
+     colors[i3 + 2] = finalColor.b
 }
 
 particlesGeometry.setAttribute( 'position', new THREE.Float32BufferAttribute(positions, 3) )
@@ -218,6 +261,14 @@ const test = new THREE.Mesh(
     new THREE.MeshBasicMaterial({color:0xFF0000, wireframe:true})
 )
 // scene.add(test)
+
+const raycastPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(1000, 1000),
+    new THREE.MeshBasicMaterial({color:0x000000, transparent:true, opacity:0.01})
+)
+raycastPlane.position.set(0, 0, 0)
+scene.add(raycastPlane)
+
 document.querySelector('canvas')?.addEventListener('mousemove', event =>
 {
     pointer.x = (event.x / sizes.width) * 2 - 1
@@ -225,7 +276,7 @@ document.querySelector('canvas')?.addEventListener('mousemove', event =>
 
     raycaster.setFromCamera(pointer, camera)
 
-    const intersects = raycaster.intersectObject(particles)
+    const intersects = raycaster.intersectObject(raycastPlane)
     if(intersects.length > 0)
     {
         test.position.lerp(intersects[0].point, 0.2)
@@ -241,7 +292,7 @@ document.querySelector('canvas')?.addEventListener('touchmove', e => {
 
     raycaster.setFromCamera(pointer, camera)
 
-    const intersects = raycaster.intersectObject(particles)
+    const intersects = raycaster.intersectObject(raycastPlane)
     if(intersects.length > 0)
     {
         test.position.lerp(intersects[0].point, 0.2)
@@ -249,12 +300,11 @@ document.querySelector('canvas')?.addEventListener('touchmove', e => {
     }
 })
 
-let glowPath = '/glow.png'
-if( window.location.href.includes("github") ) glowPath = "."+glowPath
+let glowPath = './glow.png'
 
 const particlesMaterial = new THREE.ShaderMaterial({
     blending: THREE.AdditiveBlending,
-    depthWrite: false,
+    // depthWrite: false,
     depthTest: false,
     vertexShader: particlesVertexShader,
     fragmentShader: particlesFragmentShader,
@@ -271,13 +321,203 @@ const particlesMaterial = new THREE.ShaderMaterial({
 const particles = new THREE.Points(particlesGeometry, particlesMaterial)
 scene.add(particles)
 
+/**
+ * Disque principal bleu transparent
+ */
+const galaxyRadius = Math.max(OUTER_CORE_X_DIST, ARM_X_MEAN + ARM_X_DIST * 2)
+const diskGeometry = new THREE.RingGeometry(CORE_X_DIST * 2.5, galaxyRadius * 2.2, 30, 64)
+const diskMaterial = new THREE.ShaderMaterial({
+    blending: THREE.NormalBlending,
+    depthWrite: false,
+    depthTest: false,
+    transparent: true,
+    vertexShader: disqueVertexShader,
+    fragmentShader: disqueFragmentShader,
+    uniforms: {
+        uResolution: new THREE.Uniform(new THREE.Vector2(sizes.width * sizes.pixelRatio, sizes.height * sizes.pixelRatio)),
+        uTime: new THREE.Uniform(0),
+        uGalaxyRadius: new THREE.Uniform(galaxyRadius),
+        uTexture: new THREE.Uniform(textureLoader.load('./clouds/7.png'))
+    }
+})
+const disk = new THREE.Mesh(diskGeometry, diskMaterial)
+disk.position.set(0, 0, 0)
+
+scene.add(disk)
+
+/**
+ * Gaz interstellaire - Nuages dans les bras uniquement
+ */
+const gasTweaks = {
+    gasParticleSize: GAS_PARTICLE_SIZE,
+}
+
+// Génération des positions du gaz - uniquement dans les bras de la galaxie
+const maxRadius = Math.max(GAS_OUTER_CORE_X_DIST, GAS_ARM_X_MEAN + GAS_ARM_X_DIST * 2)
+const coreRadius = Math.max(CORE_X_DIST, CORE_Y_DIST)
+
+// Réduire le nombre de nuages pour qu'ils soient plus petits et plus opaques
+const cloudCount = Math.floor(GAS_COUNT * 0.3) // Moins de nuages mais plus visibles
+
+// Créer une géométrie de base (plan) pour chaque nuage
+const baseGeometry = new THREE.PlaneGeometry(40, 40)
+
+// Stocker les positions initiales pour calculer les matrices d'instance
+const gasPositionsTmp = []
+const gasRandom = []
+const gasColors = []
+const gasDensities = []
+const gasIntensities = []
+const gasAngles = []
+const gasGreyVioletColor = new THREE.Color('#8b7fa8') // Gris/violet
+
+// Générer les données pour chaque instance
+for(let i = 0; i < cloudCount; i++)
+{
+    // Générer les positions uniquement dans les bras en utilisant la fonction spiral
+    // Répartir uniformément entre les bras
+    const armIndex = Math.floor(Math.random() * ARMS)
+    const armOffset = armIndex * 2 * Math.PI / ARMS
+    
+    // Position dans les bras avec distribution gaussienne
+    const x = gaussianRandom(GAS_ARM_X_MEAN, GAS_ARM_X_DIST)
+    const y = gaussianRandom(GAS_ARM_Y_MEAN, GAS_ARM_Y_DIST)
+    const z = gaussianRandom(0, GAS_THICKNESS)
+    
+    // Appliquer la transformation en spirale
+    const pos = spiral(x, y, z, armOffset)
+    
+    gasPositionsTmp.push(pos)
+    
+    // Random pour variation
+    const spherical = new THREE.Spherical(
+        (0.75 + Math.random() * 0.25),
+        Math.random() * Math.PI,
+        Math.random() * Math.PI * 2,
+    )
+    const randomVec = new THREE.Vector3()
+    randomVec.setFromSpherical(spherical)
+    
+    gasRandom.push(randomVec)
+    
+    // Couleur gris/violet avec légère variation
+    const distanceFromCenter = pos.distanceTo(new THREE.Vector3(0, 0, 0))
+    const colorVariation = 0.8 + Math.random() * 0.2
+    const finalColor = gasGreyVioletColor.clone().multiplyScalar(colorVariation)
+    
+    gasColors.push(finalColor)
+    
+    // Densité plus élevée pour des nuages plus opaques
+    gasDensities.push(0.8 + Math.random() * 0.2) // Entre 0.8 et 1.0 pour plus d'opacité
+    
+    gasIntensities.push(Math.random())
+    gasAngles.push(Math.random() * Math.PI * 2)
+}
+
+// Créer les matrices d'instance et les attributs instanciés
+const instanceMatrices = []
+const instanceColors = new Float32Array(cloudCount * 3)
+const instanceRandom = new Float32Array(cloudCount * 3)
+const instanceDensities = new Float32Array(cloudCount)
+const instanceIntensities = new Float32Array(cloudCount)
+const instanceAngles = new Float32Array(cloudCount)
+
+for (let i = 0; i < cloudCount; i++)
+{
+    const pos = gasPositionsTmp[i]
+    
+    // Créer une matrice d'instance pour positionner chaque nuage
+    // L'orientation billboard est gérée dans le vertex shader
+    const matrix = new THREE.Matrix4()
+    matrix.setPosition(pos)
+    
+    instanceMatrices.push(matrix)
+    
+    // Remplir les attributs instanciés
+    instanceColors[i * 3] = gasColors[i].r
+    instanceColors[i * 3 + 1] = gasColors[i].g
+    instanceColors[i * 3 + 2] = gasColors[i].b
+    
+    instanceRandom[i * 3] = gasRandom[i].x
+    instanceRandom[i * 3 + 1] = gasRandom[i].y
+    instanceRandom[i * 3 + 2] = gasRandom[i].z
+    
+    instanceDensities[i] = gasDensities[i]
+    instanceIntensities[i] = gasIntensities[i]
+    instanceAngles[i] = gasAngles[i]
+}
+
+// Créer la géométrie instanciée
+const gasGeometry = baseGeometry.clone()
+
+// Ajouter les attributs instanciés
+gasGeometry.setAttribute('aColor', new THREE.InstancedBufferAttribute(instanceColors, 3))
+gasGeometry.setAttribute('aRandom', new THREE.InstancedBufferAttribute(instanceRandom, 3))
+gasGeometry.setAttribute('aDensity', new THREE.InstancedBufferAttribute(instanceDensities, 1))
+gasGeometry.setAttribute('aIntensity', new THREE.InstancedBufferAttribute(instanceIntensities, 1))
+gasGeometry.setAttribute('aAngle', new THREE.InstancedBufferAttribute(instanceAngles, 1))
+
+let cloudPath = './clouds/4.png'
+let cloudPath2 = './clouds/3.png'
+// if( window.location.href.includes("github") ) cloudPath = "."+cloudPath
+
+
+// Matériau du gaz
+// Optimisations de performance :
+// - Utilisation d'InstancedMesh pour meilleures performances
+// - Frustum culling automatique par Three.js
+// - Depth test activé pour éviter le rendu inutile
+const gasMaterial = new THREE.ShaderMaterial({
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false, // Activer le depth test pour que le gaz soit derrière les étoiles
+    transparent: true,
+    vertexShader: gasVertexShader,
+    fragmentShader: gasFragmentShader,
+    // Optimisation : désactiver certaines fonctionnalités inutiles
+    fog: false,
+    lights: false,
+    uniforms:
+    {
+        uResolution: new THREE.Uniform(new THREE.Vector2(sizes.width * sizes.pixelRatio, sizes.height * sizes.pixelRatio)),
+        uGasParticleSize: new THREE.Uniform(GAS_PARTICLE_SIZE * 0.5), // Nuages plus petits
+        uPointer: new THREE.Uniform(point),
+        PI: new THREE.Uniform(Math.PI),
+        uTime: new THREE.Uniform(0),
+        uTexture: new THREE.Uniform(textureLoader.load(cloudPath)),
+        uTexture2: new THREE.Uniform(textureLoader.load(cloudPath2)),
+        uMaxRadius: new THREE.Uniform(maxRadius),
+        uCoreRadius: new THREE.Uniform(coreRadius)
+    }
+})
+
+// Créer l'InstancedMesh
+const gas = new THREE.InstancedMesh(gasGeometry, gasMaterial, cloudCount)
+
+// Appliquer les matrices d'instance
+for (let i = 0; i < cloudCount; i++)
+{
+    gas.setMatrixAt(i, instanceMatrices[i])
+}
+
+gas.instanceMatrix.needsUpdate = true
+gas.frustumCulled = true
+gas.visible = false
+scene.add(gas)
+
 const gui = new GUI;
-gui.hide()
+// gui.hide();
 gui 
     .add(tweaks, 'particleSize')
     .min(0.001)
     .max(1)
     .step(0.01)
+   
+gui.add(gasTweaks, 'gasParticleSize')
+    .min(0.5)
+    .max(50)
+    .step(0.1)
+
 
 
     /**
@@ -353,27 +593,38 @@ const TintShader = {
     `
 }
 const tintPass = new ShaderPass(TintShader)
-parameters.uTint = 0.135
+parameters.uTint = 0.05
 tintPass.material.uniforms.uTint.value = new THREE.Vector3(parameters.uTint,parameters.uTint,parameters.uTint)
 gui.add(parameters, 'uTint').min(0).max(1).step(0.001).onChange(value => {
     tintPass.material.uniforms.uTint.value = new THREE.Vector3(value,value,value)
 })
 effectComposer.addPass(tintPass)
 
+
+/**
+ * Stats
+ */
+const stats = new Stats()
+stats.showPanel(0)
+document.body.appendChild(stats.dom)
 /**
  * Animate
  */
 const clock = new THREE.Clock()
 const tick = () =>
 {
+    stats.begin()
     // Update controls
-    // controls.update()
+    controls.update()
 
     const elapsedTime = clock.getElapsedTime()
     particlesMaterial.uniforms.uTime.value = elapsedTime * 0.5 
+    gasMaterial.uniforms.uTime.value = elapsedTime * 0.5
+    diskMaterial.uniforms.uTime.value = elapsedTime * 0.5
     // particles.rotation.z = elapsedTime * 0.05
 
 
+    disk.rotation.z = elapsedTime * 0.05
 
     // Render
     // renderer.render(scene, camera)
@@ -382,9 +633,11 @@ const tick = () =>
 
     // Tweaks
     particlesMaterial.uniforms.uParticleSize.value = tweaks.particleSize
+    gasMaterial.uniforms.uGasParticleSize.value = gasTweaks.gasParticleSize
 
     // Call tick again on the next frame
     window.requestAnimationFrame(tick)
+    stats.end()
 }
 
 tick()

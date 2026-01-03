@@ -1,6 +1,6 @@
 # Last Version Of Animated Galaxy
 
-## [Demo Here](https://tolexia.github.io/trezora/) 
+## [Demo Here](https://tolexia.github.io/galaxy-v4/) 
 
 ## Preview
 ![Preview](./preview.png)
