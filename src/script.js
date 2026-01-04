@@ -76,6 +76,7 @@ scene.add(camera)
 // Controls
 const controls = new OrbitControls(camera, canvas)
 controls.enableDamping = true
+controls.enabled = false
 
 /**
  * Renderer
@@ -615,7 +616,7 @@ const tick = () =>
 {
     stats.begin()
     // Update controls
-    controls.update()
+    // controls.update()
 
     const elapsedTime = clock.getElapsedTime()
     particlesMaterial.uniforms.uTime.value = elapsedTime * 0.5 
